@@ -3,22 +3,51 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
     <title>Tesseract.js OCR Web Engine</title>
+    <meta
+      name="description"
+      content="Extract text from images in your browser with Tesseract.js. Nothing is uploaded."
+    />
     <link rel="stylesheet" href="style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"
+      integrity="sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <body>
     <div class="container">
       <header>
-        <h1>🔍 Tesseract.js OCR Engine</h1>
-        <p>High-accuracy text recognition in the browser powered by WebAssembly</p>
+        <h1>Tesseract.js OCR Engine</h1>
+        <p>
+          Text recognition in your browser, powered by WebAssembly. Images never leave your device.
+        </p>
       </header>
 
       <main>
-        <div class="drop-zone" id="dropZone">
+        <div class="field">
+          <label for="langSelect">Language</label>
+          <select id="langSelect"></select>
+        </div>
+
+        <div
+          class="drop-zone"
+          id="dropZone"
+          role="button"
+          tabindex="0"
+          aria-label="Choose an image to extract text from. You can also drop or paste an image."
+        >
           <input type="file" id="fileInput" accept="image/*" hidden />
-          <div class="drop-prompt">
-            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="drop-prompt" id="dropPrompt">
+            <svg
+              width="48"
+              height="48"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -26,22 +55,32 @@
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <p>Drag & drop your image here, or <span>browse files</span></p>
+            <p>Drag &amp; drop, paste, or <span>browse files</span></p>
           </div>
-          <img id="imagePreview" alt="Preview" style="display: none" />
+          <img id="imagePreview" alt="Preview of the selected image" hidden />
         </div>
 
-        <div class="status-card" id="statusCard" style="display: none">
-          <div class="progress-bar-container">
+        <div class="status-card" id="statusCard" hidden>
+          <div
+            class="progress-bar-container"
+            role="progressbar"
+            aria-label="OCR progress"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            id="progressTrack"
+          >
             <div class="progress-bar" id="progressBar"></div>
           </div>
-          <p class="status-text" id="statusText">Initializing worker...</p>
+          <p class="status-text" id="statusText" role="status" aria-live="polite"></p>
         </div>
 
-        <div class="result-card" id="resultCard" style="display: none">
+        <p class="error-text" id="errorText" role="alert" hidden></p>
+
+        <div class="result-card" id="resultCard" hidden>
           <div class="result-header">
-            <h3>Extracted Text</h3>
-            <button id="copyBtn" class="btn secondary">📋 Copy Text</button>
+            <label for="outputArea"><h2>Extracted Text</h2></label>
+            <button id="copyBtn" class="btn secondary" type="button">Copy text</button>
           </div>
           <textarea id="outputArea" rows="8" readonly></textarea>
         </div>
@@ -51,6 +90,6 @@
         <p>Crafted by <a href="https://github.com/imaqib101">Mohammed Aqib</a></p>
       </footer>
     </div>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

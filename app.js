@@ -1,78 +1,187 @@
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const imagePreview = document.getElementById('imagePreview');
-const statusCard = document.getElementById('statusCard');
-const progressBar = document.getElementById('progressBar');
-const statusText = document.getElementById('statusText');
-const resultCard = document.getElementById('resultCard');
-const outputArea = document.getElementById('outputArea');
-const copyBtn = document.getElementById('copyBtn');
+import {
+  LANGUAGES,
+  describeProgress,
+  formatConfidence,
+  pickImageFile,
+  validateImageFile,
+} from './lib.js';
 
-dropZone.addEventListener('click', () => fileInput.click());
+const $ = (id) => document.getElementById(id);
+const dropZone = $('dropZone');
+const dropPrompt = $('dropPrompt');
+const fileInput = $('fileInput');
+const langSelect = $('langSelect');
+const imagePreview = $('imagePreview');
+const statusCard = $('statusCard');
+const progressTrack = $('progressTrack');
+const progressBar = $('progressBar');
+const statusText = $('statusText');
+const errorText = $('errorText');
+const resultCard = $('resultCard');
+const outputArea = $('outputArea');
+const copyBtn = $('copyBtn');
+
+const COPY_LABEL = 'Copy text';
+
+let worker = null;
+let workerLang = null;
+let busy = false;
+let previewUrl = null;
+let activeProgress = () => {};
+
+for (const { code, label } of LANGUAGES) {
+  langSelect.append(new Option(label, code));
+}
+
+function setProgress(percent) {
+  progressBar.style.width = `${percent}%`;
+  progressTrack.setAttribute('aria-valuenow', String(percent));
+}
+
+function showError(message) {
+  errorText.textContent = message;
+  errorText.hidden = false;
+}
+
+function setBusy(value) {
+  busy = value;
+  langSelect.disabled = value;
+  dropZone.setAttribute('aria-busy', String(value));
+  dropZone.classList.toggle('disabled', value);
+}
+
+function showPreview(file) {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(file);
+  imagePreview.src = previewUrl;
+  imagePreview.hidden = false;
+  dropPrompt.hidden = true;
+}
+
+async function getWorker(lang) {
+  if (worker && workerLang === lang) return worker;
+  if (worker) {
+    const old = worker;
+    worker = null;
+    await old.terminate();
+  }
+  worker = await Tesseract.createWorker(lang, 1, {
+    logger: (m) => activeProgress(m),
+  });
+  workerLang = lang;
+  return worker;
+}
+
+async function discardWorker() {
+  const old = worker;
+  worker = null;
+  workerLang = null;
+  try {
+    await old?.terminate();
+  } catch {
+    // The worker is already unusable; nothing more to clean up.
+  }
+}
+
+async function processImage(file) {
+  if (busy) return;
+
+  errorText.hidden = true;
+  const check = validateImageFile(file);
+  if (!check.ok) {
+    showError(check.error);
+    return;
+  }
+  if (typeof Tesseract === 'undefined') {
+    showError('The OCR engine failed to load. Check your connection and reload the page.');
+    return;
+  }
+
+  setBusy(true);
+  showPreview(file);
+  statusCard.hidden = false;
+  resultCard.hidden = true;
+  progressBar.classList.remove('failed');
+  setProgress(0);
+  statusText.textContent = 'Loading Tesseract OCR engine...';
+
+  activeProgress = (m) => {
+    const { percent, text } = describeProgress(m);
+    if (percent !== null) setProgress(percent);
+    statusText.textContent = text;
+  };
+
+  try {
+    const ocr = await getWorker(langSelect.value);
+    const { data } = await ocr.recognize(file);
+    outputArea.value = data.text.trim();
+    resultCard.hidden = false;
+    setProgress(100);
+    statusText.textContent = data.text.trim()
+      ? `Completed (confidence: ${formatConfidence(data.confidence)})`
+      : 'Completed, but no text was found in this image.';
+  } catch (err) {
+    progressBar.classList.add('failed');
+    statusText.textContent = 'Recognition failed.';
+    showError(`Error: ${err?.message ?? err}`);
+    await discardWorker();
+  } finally {
+    setBusy(false);
+    fileInput.value = '';
+  }
+}
+
+async function copyText() {
+  try {
+    await navigator.clipboard.writeText(outputArea.value);
+  } catch {
+    // Clipboard API unavailable (insecure context or denied); fall back to selection copy.
+    outputArea.select();
+    if (!document.execCommand('copy')) {
+      showError('Could not copy automatically. Select the text and copy it manually.');
+      return;
+    }
+  }
+  copyBtn.textContent = 'Copied!';
+  setTimeout(() => (copyBtn.textContent = COPY_LABEL), 2000);
+}
+
+dropZone.addEventListener('click', () => {
+  if (!busy) fileInput.click();
+});
+
+dropZone.addEventListener('keydown', (e) => {
+  if (e.target === dropZone && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    if (!busy) fileInput.click();
+  }
+});
 
 fileInput.addEventListener('change', (e) => {
-  if (e.target.files.length > 0) {
-    processImage(e.target.files[0]);
-  }
+  const file = pickImageFile(e.target.files);
+  if (file) processImage(file);
 });
 
 dropZone.addEventListener('dragover', (e) => {
   e.preventDefault();
-  dropZone.style.borderColor = '#58a6ff';
+  dropZone.classList.add('dragover');
 });
 
-dropZone.addEventListener('dragleave', () => {
-  dropZone.style.borderColor = '#30363d';
-});
+for (const type of ['dragleave', 'drop']) {
+  dropZone.addEventListener(type, () => dropZone.classList.remove('dragover'));
+}
 
 dropZone.addEventListener('drop', (e) => {
   e.preventDefault();
-  dropZone.style.borderColor = '#30363d';
-  if (e.dataTransfer.files.length > 0) {
-    processImage(e.dataTransfer.files[0]);
-  }
+  const file = pickImageFile(e.dataTransfer.files);
+  if (file) processImage(file);
 });
 
-copyBtn.addEventListener('click', async () => {
-  await navigator.clipboard.writeText(outputArea.value);
-  copyBtn.innerText = '✅ Copied!';
-  setTimeout(() => (copyBtn.innerText = '📋 Copy Text'), 2000);
+document.addEventListener('paste', (e) => {
+  const file = pickImageFile(e.clipboardData?.files);
+  if (file) processImage(file);
 });
 
-async function processImage(file) {
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    imagePreview.src = e.target.result;
-    imagePreview.style.display = 'block';
-    document.querySelector('.drop-prompt').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
+copyBtn.addEventListener('click', copyText);
 
-  statusCard.style.display = 'block';
-  resultCard.style.display = 'none';
-  progressBar.style.width = '0%';
-  statusText.innerText = 'Loading Tesseract OCR engine...';
-
-  try {
-    const worker = await Tesseract.createWorker('eng', 1, {
-      logger: (m) => {
-        if (m.status === 'recognizing text') {
-          const progress = Math.round(m.progress * 100);
-          progressBar.style.width = `${progress}%`;
-          statusText.innerText = `Recognizing text: ${progress}%`;
-        } else {
-          statusText.innerText = m.status;
-        }
-      },
-    });
-
-    const ret = await worker.recognize(file);
-    outputArea.value = ret.data.text.trim();
-    resultCard.style.display = 'block';
-    statusText.innerText = `Completed (Confidence: ${Math.round(ret.data.confidence)}%)`;
-    await worker.terminate();
-  } catch (err) {
-    statusText.innerText = `Error: ${err.message}`;
-    progressBar.style.background = '#da3633';
-  }
-}
+window.addEventListener('pagehide', () => worker?.terminate());
