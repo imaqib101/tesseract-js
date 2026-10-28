@@ -21,6 +21,7 @@ A client-side Optical Character Recognition (OCR) web engine powered by **Tesser
 ## 🚀 Quick Start
 
 ### Option 1: Direct Browser Access
+
 Simply open `index.html` in any modern web browser or serve it with a static file server:
 
 ```bash
@@ -38,14 +39,16 @@ Open [http://localhost:3000](http://localhost:3000).
 ## 💻 Code Example
 
 ```javascript
-import { createWorker } from "tesseract.js";
+import { createWorker } from 'tesseract.js';
 
 async function recognizeImage(imageFile) {
-  const worker = await createWorker("eng");
-  
-  const { data: { text, confidence } } = await worker.recognize(imageFile);
+  const worker = await createWorker('eng');
+
+  const {
+    data: { text, confidence },
+  } = await worker.recognize(imageFile);
   console.log(`Recognized Text (${confidence}% confidence):`, text);
-  
+
   await worker.terminate();
   return text;
 }
@@ -67,5 +70,6 @@ async function recognizeImage(imageFile) {
 ## 👤 Author
 
 **Mohammed Aqib**
+
 - GitHub: [@imaqib101](https://github.com/imaqib101)
 - Location: Bengaluru, India
