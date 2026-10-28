@@ -1,75 +1,60 @@
-# Tesseract.js OCR Web Engine 🔍
+# Tesseract.js OCR Web Engine
 
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
-[![Tesseract.js](https://img.shields.io/badge/Tesseract.js-v4-5C6BC0?style=for-the-badge)](https://tesseract.projectnaptha.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+A small static web page that extracts text from images in the browser using
+[Tesseract.js](https://github.com/naptha/tesseract.js) (WebAssembly in a Web Worker).
+Images are processed locally and are never uploaded.
 
-A client-side Optical Character Recognition (OCR) web engine powered by **Tesseract.js** (WebAssembly / Web Workers). Extracts text from scanned documents, receipts, screenshots, and photos entirely in the browser with zero server overhead.
+## Features
 
----
+- Choose an image by clicking, drag and drop, or pasting from the clipboard
+- Recognition language selector (English, German, French, Spanish, Italian, Portuguese, Hindi, Arabic)
+- Progress bar and confidence score; clear errors for non-image, empty, or oversized (over 20 MB) files
+- Copy the result to the clipboard
+- Keyboard accessible, screen reader status updates, light and dark themes, responsive layout
 
-## ⚡ Highlights
+## Usage
 
-- 🌐 **100% Client-Side**: All image recognition runs locally via WebAssembly Web Workers — no data leaves the browser.
-- 🖼️ **Multi-Format Support**: Supports PNG, JPEG, WEBP, BMP, and PBM image formats.
-- 📊 **Real-Time Progress Tracking**: Live worker status and recognition confidence scoring.
-- 📋 **One-Click Export**: Copy extracted text directly to clipboard with formatted spacing preserved.
-- 🎨 **Modern Interface**: Clean responsive UI with drag-and-drop zone and image preview.
-
----
-
-## 🚀 Quick Start
-
-### Option 1: Direct Browser Access
-
-Simply open `index.html` in any modern web browser or serve it with a static file server:
+The page loads its script as an ES module, so it must be served over HTTP rather than opened
+from `file://`:
 
 ```bash
-# Using Python built-in server
-python3 -m http.server 3000
-
-# Or using npx serve
-npx serve .
+npm install     # only needed for lint and tests
+npm start       # serves the folder at http://localhost:3000 (needs python3)
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Any static server works, for example `npx serve .`.
 
----
+Notes:
 
-## 💻 Code Example
+- The Tesseract.js script, worker, WASM core and language data are fetched from public CDNs
+  (jsDelivr and tessdata.projectnaptha.com), so an internet connection is required on first use.
+  Language data is downloaded the first time each language is used.
+- The CDN script is pinned to `tesseract.js@5.1.1` with a Subresource Integrity hash. When upgrading,
+  recompute it, for example:
+  `openssl dgst -sha384 -binary tesseract.min.js | openssl base64 -A`
 
-```javascript
-import { createWorker } from 'tesseract.js';
+## Development
 
-async function recognizeImage(imageFile) {
-  const worker = await createWorker('eng');
-
-  const {
-    data: { text, confidence },
-  } = await worker.recognize(imageFile);
-  console.log(`Recognized Text (${confidence}% confidence):`, text);
-
-  await worker.terminate();
-  return text;
-}
+```bash
+npm run lint          # ESLint
+npm run format:check  # Prettier (use `npm run format` to fix)
+npm test              # Vitest unit tests for the pure logic in lib.js
 ```
 
----
-
-## 📂 Architecture
+## Project layout
 
 ```text
-├── index.html         # Application shell with drag-and-drop canvas
-├── style.css          # Modern dark-mode styling and animations
-├── app.js             # Tesseract worker lifecycle & recognition pipeline
-└── README.md          # Project documentation
+index.html   Page markup
+style.css    Styles (CSS variables, light/dark)
+app.js       DOM wiring and the Tesseract worker lifecycle
+lib.js       Pure helpers (file validation, progress formatting, language list)
+tests/       Unit tests
 ```
 
----
+## Contributing
 
-## 👤 Author
+See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
-**Mohammed Aqib**
+## License
 
-- GitHub: [@imaqib101](https://github.com/imaqib101)
-- Location: Bengaluru, India
+[MIT](LICENSE) © Mohammed Aqib
